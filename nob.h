@@ -343,6 +343,28 @@ NOBDEF int nob_sb_appendf(Nob_String_Builder *sb, const char *fmt, ...) NOB_PRIN
 // Free the memory allocated by a string builder
 #define nob_sb_free(sb) NOB_FREE((sb).items)
 
+typedef struct {
+    Nob_String_Builder *items;
+    size_t count;
+    size_t capacity;
+} Nob_String_Builders;
+
+// Takes in a string builder and generates several string builders for each line.
+// A "line" is delimited by "\n" or "\r\n".
+// The output string builder(s) do not include the line ending.
+NOBDEF Nob_String_Builders nob_sb_splitlines(Nob_String_Builder sb);
+
+// free a dynamic array of string builders
+#define nob_sbs_free(sbs) nob_das_free(sbs)
+
+// free a dynamic array of dynamic arrays
+#define nob_das_free(das)                      \
+    do {                                       \
+        for (size_t i = 0; i < das.count; i++) \
+            NOB_FREE(das.items[i].items);      \
+        NOB_FREE(das.items);                   \
+    } while (0)
+
 // Process handle
 #ifdef _WIN32
 typedef HANDLE Nob_Proc;
@@ -1932,6 +1954,27 @@ NOBDEF int nob_sb_appendf(Nob_String_Builder *sb, const char *fmt, ...)
     return n;
 }
 
+NOBDEF Nob_String_Builders nob_sb_splitlines(Nob_String_Builder sb)
+{
+    Nob_String_Builders sbs = {0};
+    Nob_String_View lhs = {0};
+    Nob_String_View rhs = nob_sb_to_sv(sb);
+
+    while (rhs.count) {
+        Nob_String_Builder tmp_sb = {0};
+        lhs = nob_sv_chop_by_delim(&rhs, '\n');
+
+        // if carriage return, eliminate
+        if (lhs.count && lhs.data[lhs.count - 1] == '\r')
+            lhs.count--;
+
+        nob_sb_append_buf(&tmp_sb, lhs.data, lhs.count);
+        nob_da_append(&sbs, tmp_sb);
+    }
+
+    return sbs;
+}
+
 NOBDEF Nob_String_View nob_sv_chop_by_delim(Nob_String_View *sv, char delim)
 {
     size_t i = 0;
@@ -2230,6 +2273,7 @@ NOBDEF int closedir(DIR *dirp)
         #define return_defer nob_return_defer
         #define da_append nob_da_append
         #define da_free nob_da_free
+        #define das_free nob_das_free
         #define da_append_many nob_da_append_many
         #define da_resize nob_da_resize
         #define da_reserve nob_da_reserve
@@ -2237,12 +2281,15 @@ NOBDEF int closedir(DIR *dirp)
         #define da_remove_unordered nob_da_remove_unordered
         #define da_foreach nob_da_foreach
         #define String_Builder Nob_String_Builder
+        #define String_Builders Nob_String_Builders
         #define read_entire_file nob_read_entire_file
         #define sb_appendf nob_sb_appendf
+        #define sb_splitlines nob_sb_splitlines
         #define sb_append_buf nob_sb_append_buf
         #define sb_append_cstr nob_sb_append_cstr
         #define sb_append_null nob_sb_append_null
         #define sb_free nob_sb_free
+        #define sbs_free nob_sbs_free
         #define Proc Nob_Proc
         #define INVALID_PROC NOB_INVALID_PROC
         #define Fd Nob_Fd

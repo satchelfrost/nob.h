@@ -22,6 +22,7 @@ const char *test_names[] = {
     "da_remove_unordered",
     "da_append",
     "sb_appendf",
+    "sb_splitlines",
     "da_foreach",
     "temp_aligned_alloc",
 };
